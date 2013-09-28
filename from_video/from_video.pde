@@ -50,8 +50,6 @@ void setup()
   Camera camera = new Camera(this);
   capture = camera.get();
   capture.start();
-  
-  
   */
   
   flipMap(videoW, videoH);
@@ -106,7 +104,7 @@ void draw(){
     background.apply(camFinal, back);
     
     // erosion/dillation element
-    Mat element = Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, new Size(7, 7));
+    Mat element = Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, new Size(5, 5));
     
     Mat eroded = new Mat(videoW, videoH, CvType.CV_8UC1);
     Imgproc.erode(back, eroded, element);
@@ -114,7 +112,11 @@ void draw(){
     Mat dilated = new Mat(videoW, videoH, CvType.CV_8UC1);
     Imgproc.dilate(eroded, dilated, element);
     
-    image(imageLibrary.toP5(dilated), width/2, 0, videoW, videoH);
+    // apply gaussian blur
+    Mat blured = new Mat(videoW, videoH, CvType.CV_8UC4);
+    Imgproc.GaussianBlur(dilated, blured, new Size(11, 11), 11, 11);
+    
+    image(imageLibrary.toP5(blured), width/2, 0, videoW, videoH);
     
     if(face_detect){
       Size minSize = new Size(150, 150);
