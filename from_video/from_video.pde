@@ -14,6 +14,10 @@ import org.opencv.photo.*;
 
 import java.util.*;
 
+import Blobscanner.*;
+
+Detector detector;
+
 boolean face_detect = false;
 
 //Capture capture;
@@ -33,6 +37,10 @@ int h = 480*2;
 int videoW = w/2;
 int videoH = h/2;
 
+// to configure this as well to cut to small objects from detection
+int MIN_OBJECT_AREA = 20*20;
+int MAX_OBJECT_AREA = (int) Math.floor(videoH*videoW/1.5);
+
 Slider history, mixtures, backgroundRatio, noiseSigma, erode;
 
 Movie video;
@@ -42,6 +50,8 @@ int frameCnt = 0;
 int FRAME_RATE = 30;
 
 Tuning tuning;
+
+Map<String, List<Point>> trajectories = new HashMap();
 
 void setup()
 {
@@ -76,6 +86,8 @@ void setup()
   erode = new Slider("Erode/Dilate", tuning.erode, 1, 10, 150, videoH + 130, 300, 15, HORIZONTAL);
   
   background = new BackgroundSubtractorMOG((int) history.get(), (int) mixtures.get(), backgroundRatio.get(), noiseSigma.get());
+  
+  detector = new Detector(this, videoW, 0, videoW, videoH, 255);
   
   // called on shutdown
   prepareExitHandler();
@@ -115,6 +127,8 @@ void draw(){
     int erodeValue = (int) erode.get();
     Mat element = Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, new Size(2*erodeValue+1, 2*erodeValue+1));
     
+    // number of iterations - configurable - affects small details and people walking far from camera
+    // TODO: implement detection based on size of image/relative distance from camera
     // erode
     Mat eroded = new Mat(videoW, videoH, CvType.CV_8UC1);
     Imgproc.erode(back, eroded, element); // back
@@ -123,15 +137,43 @@ void draw(){
     Mat dilated = new Mat(videoW, videoH, CvType.CV_8UC1);
     Imgproc.dilate(eroded, dilated, element);
     
+    // 2nd phase
+    // erode
+    Mat eroded2 = new Mat(videoW, videoH, CvType.CV_8UC1);
+    Imgproc.erode(dilated, eroded2, element); // back
+    
+    // dilate
+    Mat dilated2 = new Mat(videoW, videoH, CvType.CV_8UC1);
+    Imgproc.dilate(eroded2, dilated2, element);
+    
     // apply gaussian blur
     Mat blured = new Mat(videoW, videoH, CvType.CV_8UC4);
-    Imgproc.GaussianBlur(dilated, blured, new Size(11, 11), 11, 11);
+    // significant blur - actually configurable
+    int blur = 35; //15
+    Imgproc.GaussianBlur(dilated2, blured, new Size(blur, blur), blur, blur);      
+    
         
-    // contours
-    Mat forContours = dilated.clone(); 
+    // contours - need to copy to avoid image corruption by this method
+    Mat forContours = blured.clone(); 
     List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
     Imgproc.findContours(forContours, contours, new Mat(), Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE); // CHAIN_APPROX_SIMPLE?
-    Imgproc.drawContours(camFinal, contours, -1, new Scalar(255, 255, 0), 3);
+    Imgproc.drawContours(camFinal, contours, -1, new Scalar(0, 0, 255), 3);
+    
+    
+    // TODO: investigate motion abilities if have more time
+    // Video.segmentMotion ...
+    
+    /*
+    color contoursCol = color(255, 255, 0);
+    int contoursThickness = 2;    
+    PImage img = imageLibrary.toP5(blured);
+    //img.filter(THRESHOLD);
+    //img.loadPixels();    
+    detector.imageFindBlobs(img);
+    // to call always before to use a method returning or processing a blob feature
+    detector.loadBlobsFeatures(); 
+    detector.drawContours(contoursCol, contoursThickness);
+    */
     
     // left - camera
     image(imageLibrary.toP5(camFinal), 0, 0, videoW, videoH);
@@ -141,12 +183,38 @@ void draw(){
     
     //println("Size = " + contours.size());
     
+    // bottom sliders to play with some veriables
     stroke(204, 102, 0);
     strokeWeight(3);
     noFill();
-    for (int i=0; i<contours.size(); i++)  {
-      Rect r = Imgproc.boundingRect(contours.get(i));      
-      //rect(r.x, r.y, r.width, r.height);
+    for (int i=0; i<contours.size(); i++)  {    
+      Rect r = Imgproc.boundingRect(contours.get(i));    
+      // area
+      double area = r.width * r.height; 
+      
+      //println ("Area = " + area); 
+      int x,y;
+      
+      boolean objectFound = false;
+      
+      // if the area is less than 20 px by 20px then it is probably just noise
+      // if the area is the same as the 3/2 of the image size, probably just a bad filter
+      if(area > MIN_OBJECT_AREA && area < MAX_OBJECT_AREA){
+        objectFound = true;
+      }
+      else{
+        objectFound = false;
+      }  
+      
+      //println ("Object found = " + objectFound);
+      
+      // track only if we really found something valuable
+      if(objectFound){        
+        rect(r.x, r.y, r.width, r.height);
+        // here we put logic which tracks actual object motion
+        // we track upper left corner of bounding rect and draw its trajectory
+        // also determine if this is human based on its speed and delta changing over time
+      }
     }
     
     if(face_detect){
