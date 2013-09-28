@@ -33,10 +33,15 @@ int h = 480*2;
 int videoW = w/2;
 int videoH = h/2;
 
-Slider history;
+Slider history, mixtures, backgroundRatio, noiseSigma, erode;
 
 Movie video;
 PImage frame;
+
+int frameCnt = 0;
+int FRAME_RATE = 30;
+
+Tuning tuning;
 
 void setup()
 {
@@ -51,26 +56,34 @@ void setup()
   capture = camera.get();
   capture.start();
   */
+    
+  println(Core.NATIVE_LIBRARY_NAME);  
+    
+  tuning = new Tuning(); 
   
   flipMap(videoW, videoH);
   
   video = new Movie(this, "sample-cafe_x264.mov");
-  video.loop();
-  
+  video.loop();  
   
   size(w, h);
-  frameRate(30);
+  frameRate(FRAME_RATE);
   
-  history = new Slider("History", 3, 0, 25, 150, videoH + 50, 300, 15, HORIZONTAL);
+  history = new Slider("History", tuning.history, 3, 5, 150, videoH + 50, 300, 15, HORIZONTAL);
+  mixtures = new Slider("Mixtures", tuning.mixtures, 0, 10, 150, videoH + 70, 300, 15, HORIZONTAL);
+  backgroundRatio = new Slider("BG Ratio", tuning.backgroundRatio, 0, 1, 150, videoH + 90, 300, 15, HORIZONTAL);
+  noiseSigma = new Slider("Noise Sigma", tuning.noiseSigma, 0, 1, 150, videoH + 110, 300, 15, HORIZONTAL);
+  erode = new Slider("Erode/Dilate", tuning.erode, 1, 10, 150, videoH + 130, 300, 15, HORIZONTAL);
   
-  background = new BackgroundSubtractorMOG(15, 3, 0);
+  background = new BackgroundSubtractorMOG((int) history.get(), (int) mixtures.get(), backgroundRatio.get(), noiseSigma.get());
+  
+  // called on shutdown
+  prepareExitHandler();
 }
 
 void draw(){
   
-  imageMode(CORNER);
-  
-  //image(video, 0, 0);
+  imageMode(CORNER);  
   
   if (video.available()) {
     video.read();
@@ -82,14 +95,11 @@ void draw(){
   if (frame != null) 
   {
     
-    //frame = video;
-    
-    //PImage pimg = frame;
-    
     Mat camMat = imageLibrary.toCV(frame);
     if(camMat == null){
       println("error");
     }
+    
     /*
     Mat realCamFlipped = new Mat(videoW, videoH, CvType.CV_8UC4);
     Imgproc.remap(camMat, realCamFlipped, resulted_x, resulted_y, 0, 0, new Scalar(0, 0, 0));
@@ -102,18 +112,19 @@ void draw(){
     background.apply(camFinal, back);
     
     // erosion/dillation element
-    Mat element = Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, new Size(5, 5));
+    int erodeValue = (int) erode.get();
+    Mat element = Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, new Size(2*erodeValue+1, 2*erodeValue+1));
     
     Mat eroded = new Mat(videoW, videoH, CvType.CV_8UC1);
-    Imgproc.erode(back, eroded, element);
+    Imgproc.erode(back, eroded, element); // back
     
     Mat dilated = new Mat(videoW, videoH, CvType.CV_8UC1);
     Imgproc.dilate(eroded, dilated, element);
     
     // apply gaussian blur
     Mat blured = new Mat(videoW, videoH, CvType.CV_8UC4);
-    Imgproc.GaussianBlur(dilated, blured, new Size(11, 11), 11, 11);
-     
+    Imgproc.GaussianBlur(dilated, blured, new Size(21, 21), 21, 21);
+        
     // contours
     Mat forContours = dilated.clone(); 
     List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
@@ -124,9 +135,9 @@ void draw(){
     image(imageLibrary.toP5(camFinal), 0, 0, videoW, videoH);
     
     // right - greyscale
-    image(imageLibrary.toP5(dilated), width/2, 0, videoW, videoH);
+    image(imageLibrary.toP5(blured), width/2, 0, videoW, videoH); //dilated
     
-    println("Size = " + contours.size());
+    //println("Size = " + contours.size());
     
     stroke(204, 102, 0);
     strokeWeight(3);
@@ -158,14 +169,30 @@ void draw(){
   }
   
   if (mousePressed) {
-      history.mouseDragged();
+    history.mouseDragged();
+    mixtures.mouseDragged();
+    backgroundRatio.mouseDragged();
+    noiseSigma.mouseDragged();
+    erode.mouseDragged();
   }
   
   fill(25);
   rect(0, videoH, w, videoH);
+  
   history.display();
+  mixtures.display();
+  backgroundRatio.display();
+  noiseSigma.display();
+  erode.display();
+  
+  
   fill(0, 102, 153);
   text((int)history.get(), 480, videoH + 60);
+  text((int)mixtures.get(), 480, videoH + 80);
+  text(backgroundRatio.get(), 480, videoH + 100);
+  text(noiseSigma.get(), 480, videoH + 120);
+  text(erode.get(), 480, videoH + 140);
+
 }
 
 // Called every time a new frame is available to read
@@ -176,19 +203,43 @@ void movieEvent(Movie m) {
 
 void mousePressed() {
   history.mousePressed();
-  background = new BackgroundSubtractorMOG((int)history.get(), 3, 0);
+  mixtures.mousePressed();
+  backgroundRatio.mousePressed();
+  noiseSigma.mousePressed();
+  erode.mousePressed();
+  
+  resetBackground();
 }
 
 void mouseDragged(){
   history.mouseDragged();
-  background = new BackgroundSubtractorMOG((int)history.get(), 3, 0);
+  mixtures.mouseDragged();
+  backgroundRatio.mouseDragged();
+  noiseSigma.mouseDragged();
+  erode.mouseDragged();
+  
+  resetBackground();
 }
 
 void keyPressed(){
   if(key == ' '){
     println("Refresh static background");
-    background = new BackgroundSubtractorMOG((int)history.get(), 3, 0);
+    resetBackground();
   }
+}
+
+private void prepareExitHandler () {  
+  Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {  
+    public void run () {      
+      println("Saving all tuning parameters");
+      // save all tuned values to file
+      tuning.save((int) history.get(), (int) mixtures.get(), backgroundRatio.get(), noiseSigma.get(), (int) erode.get());   
+    }  
+  }));
+}
+
+void resetBackground(){
+  background = new BackgroundSubtractorMOG((int) history.get(), (int) mixtures.get(), backgroundRatio.get(), noiseSigma.get());
 }
 
 void flipMap(int w, int h)
