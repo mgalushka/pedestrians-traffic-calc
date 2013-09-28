@@ -115,15 +115,17 @@ void draw(){
     int erodeValue = (int) erode.get();
     Mat element = Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, new Size(2*erodeValue+1, 2*erodeValue+1));
     
+    // erode
     Mat eroded = new Mat(videoW, videoH, CvType.CV_8UC1);
     Imgproc.erode(back, eroded, element); // back
     
+    // dilate
     Mat dilated = new Mat(videoW, videoH, CvType.CV_8UC1);
     Imgproc.dilate(eroded, dilated, element);
     
     // apply gaussian blur
     Mat blured = new Mat(videoW, videoH, CvType.CV_8UC4);
-    Imgproc.GaussianBlur(dilated, blured, new Size(21, 21), 21, 21);
+    Imgproc.GaussianBlur(dilated, blured, new Size(11, 11), 11, 11);
         
     // contours
     Mat forContours = dilated.clone(); 
