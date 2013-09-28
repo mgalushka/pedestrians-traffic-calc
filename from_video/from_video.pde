@@ -98,8 +98,6 @@ void draw(){
     Mat camFinal = new Mat(videoW, videoH, CvType.CV_8UC4);
     Imgproc.cvtColor(camMat, camFinal, Imgproc.COLOR_BGR2RGB, 0);
     
-    image(imageLibrary.toP5(camFinal), 0, 0, videoW, videoH);
-    
     Mat back = new Mat(videoW, videoH, CvType.CV_8UC1);
     background.apply(camFinal, back);
     
@@ -115,8 +113,28 @@ void draw(){
     // apply gaussian blur
     Mat blured = new Mat(videoW, videoH, CvType.CV_8UC4);
     Imgproc.GaussianBlur(dilated, blured, new Size(11, 11), 11, 11);
+     
+    // contours
+    Mat forContours = dilated.clone(); 
+    List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
+    Imgproc.findContours(forContours, contours, new Mat(), Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE); // CHAIN_APPROX_SIMPLE?
+    Imgproc.drawContours(camFinal, contours, -1, new Scalar(255, 255, 0), 3);
     
-    image(imageLibrary.toP5(blured), width/2, 0, videoW, videoH);
+    // left - camera
+    image(imageLibrary.toP5(camFinal), 0, 0, videoW, videoH);
+    
+    // right - greyscale
+    image(imageLibrary.toP5(dilated), width/2, 0, videoW, videoH);
+    
+    println("Size = " + contours.size());
+    
+    stroke(204, 102, 0);
+    strokeWeight(3);
+    noFill();
+    for (int i=0; i<contours.size(); i++)  {
+      Rect r = Imgproc.boundingRect(contours.get(i));      
+      //rect(r.x, r.y, r.width, r.height);
+    }
     
     if(face_detect){
       Size minSize = new Size(150, 150);
