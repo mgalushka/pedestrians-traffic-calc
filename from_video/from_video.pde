@@ -98,7 +98,8 @@ void setup()
 
   flipMap(videoW, videoH);
 
-  video = new Movie(this, "sample-cafe_x264.mov");
+  video = new Movie(this, "demo.mov");
+  //video = new Movie(this, "sample-cafe_x264.mov");
   
 
   size(w, h);
@@ -248,7 +249,15 @@ void draw() {
           Tracked tracked = it.next(); 
           if(tracked.isStale(frameCnt)){
             println ("Removing stale object, before = " + all.size());
-            OUT++;
+            
+            // TODO: this is dirty hack to clean cars
+            if(tracked.trajectory.size() > 60){
+              OUT++;
+            }
+            else{
+              // ignore object
+              IN--;
+            }
             it.remove();
             println ("Remove stale object, after = " + all.size());
             continue;
@@ -296,7 +305,7 @@ void draw() {
       }
     }
     
-    println("All = " + all);
+    println("All = " + all.size() + "\n" + all);
 
     if (face_detect) {
       Size minSize = new Size(150, 150);

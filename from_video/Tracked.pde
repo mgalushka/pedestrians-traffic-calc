@@ -4,11 +4,11 @@ class Tracked{
   int deltaT_x = 15;
   int deltaT_y = 45;
   
-  // stale time ~2sec
+  // stale time ~4sec
   int staleT = 120;
   
   int MAX_STALE_T = 120;
-  int MIN_STALE_T = 30;
+  int MIN_STALE_T = 15;
   
   // pixels
   int deltaX = 100;
@@ -40,6 +40,10 @@ class Tracked{
  // method determines if we need to stop tracking current object 
  // as this has disappeared from the screen forever
  public boolean isStale(Integer time){
+   // TODO: dirty hack to check next to the screen borders
+   if(last.x < 100 || last.x > 540){
+     return (Math.abs(this.T - time) > MIN_STALE_T);
+   }
    return (Math.abs(this.T - time) > staleT);
  }
  
@@ -55,8 +59,14 @@ class Tracked{
    }
  }
  
+ boolean ignore_adjusted = true;
+ 
  // checks if next point has adjusted direction with current
  private boolean adjusted(Point p){
+   
+   if(ignore_adjusted) return true;
+   
+   // TODO: test to ignore this
    if(direction < 0) return true;
    if(p.x > last.x && direction == 0) return true;
    if(p.x < last.x && direction == 1) return true;
