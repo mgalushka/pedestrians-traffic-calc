@@ -38,27 +38,8 @@ int videoW = w/2;
 int videoH = h/2;
 
 // to configure this as well to cut to small objects from detection
-int MIN_OBJECT_AREA = 20*20;
+int MIN_OBJECT_AREA = 10*10;
 int MAX_OBJECT_AREA = (int) Math.floor(videoH*videoW/1.5);
-
-// ===================================================
-// try working with motion history
-// various tracking parameters (in seconds)
-double MHI_DURATION = 1;
-double MAX_TIME_DELTA = 0.5;
-double MIN_TIME_DELTA = 0.05;
-// number of cyclic frame buffer used for motion detection
-// (should, probably, depend on FPS)
-int N = 4;
-
-// ring image buffer
-List<PImage> imageBuffer = new ArrayList(N);
-
-PImage mhi;       // MHI
-PImage orient;    // orientation
-PImage mask;      // valid orientation mask
-PImage segmask;   // motion segmentation map
-// ===================================================
 
 Slider history, mixtures, backgroundRatio, noiseSigma, erode;
 
@@ -78,6 +59,10 @@ Set<Tracked> all = new HashSet();
 Integer IN = 0;
 Integer OUT = 0;
 
+// TODO: to track multiple objects create array of this
+CamShifting cs;
+boolean tracking = false;
+
 void setup()
 {
   System.loadLibrary(Core.NATIVE_LIBRARY_NAME);  
@@ -86,22 +71,15 @@ void setup()
 
   imageLibrary = new ImageLibrary(this);
 
-  /*
-  Camera camera = new Camera(this);
-   capture = camera.get();
-   capture.start();
-   */
-
   println(Core.NATIVE_LIBRARY_NAME);  
 
   tuning = new Tuning(); 
+  cs = new CamShifting();
 
   flipMap(videoW, videoH);
 
-  video = new Movie(this, "demo.mov");
-  //video = new Movie(this, "sample-cafe_x264.mov");
+  video = new Movie(this, "sample-cafe_x264.mov");
   
-
   size(w, h);
   frameRate(FRAME_RATE);
 
@@ -161,51 +139,23 @@ void draw() {
 
     // dilate
     Mat dilated = new Mat(videoW, videoH, CvType.CV_8UC1);
-    Imgproc.dilate(eroded, dilated, element);
-
-    // 2nd phase
-    // erode
-    Mat eroded2 = new Mat(videoW, videoH, CvType.CV_8UC1);
-    Imgproc.erode(dilated, eroded2, element); // back
-
-    // dilate
-    Mat dilated2 = new Mat(videoW, videoH, CvType.CV_8UC1);
-    Imgproc.dilate(eroded2, dilated2, element);
-
-    // apply gaussian blur
-    Mat blured = new Mat(videoW, videoH, CvType.CV_8UC4);
-    // significant blur - actually configurable
-    int blur = 35; //15
-    Imgproc.GaussianBlur(dilated2, blured, new Size(blur, blur), blur, blur);      
+    Imgproc.dilate(eroded, dilated, element);   
 
 
     // contours - need to copy to avoid image corruption by this method
-    Mat forContours = blured.clone(); 
+    Mat forContours = dilated.clone(); 
     List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
     Imgproc.findContours(forContours, contours, new Mat(), Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE); // CHAIN_APPROX_SIMPLE?
     Imgproc.drawContours(camFinal, contours, -1, new Scalar(0, 0, 255), 3);
-
-
-    // TODO: investigate motion abilities if have more time
-    // Video.segmentMotion ...
-
-    /*
-    color contoursCol = color(255, 255, 0);
-     int contoursThickness = 2;    
-     PImage img = imageLibrary.toP5(blured);
-     //img.filter(THRESHOLD);
-     //img.loadPixels();    
-     detector.imageFindBlobs(img);
-     // to call always before to use a method returning or processing a blob feature
-     detector.loadBlobsFeatures(); 
-     detector.drawContours(contoursCol, contoursThickness);
-     */
-
+  
+    Mat blackAndWhite = new Mat(videoW, videoH, CvType.CV_8UC4);
+    Imgproc.cvtColor(dilated, blackAndWhite, Imgproc.COLOR_GRAY2RGBA, 0);
+  
     // left - camera
     image(imageLibrary.toP5(camFinal), 0, 0, videoW, videoH);
 
     // right - greyscale
-    image(imageLibrary.toP5(blured), width/2, 0, videoW, videoH); //dilated
+    image(imageLibrary.toP5(dilated), width/2, 0, videoW, videoH); //dilated
 
     //println("Size = " + contours.size());
 
@@ -213,79 +163,63 @@ void draw() {
     stroke(204, 102, 0);
     strokeWeight(3);
     noFill();
-    for (int i=0; i<contours.size(); i++) {    
-      Rect r = Imgproc.boundingRect(contours.get(i));    
-      // area
-      double area = r.width * r.height; 
-
-      //+println ("Area = " + area); 
-      int x, y;
-
-      boolean objectFound = false;
-
-      // if the area is less than 20 px by 20px then it is probably just noise
-      // if the area is the same as the 3/2 of the image size, probably just a bad filter
-      if (area > MIN_OBJECT_AREA && area < MAX_OBJECT_AREA) {
-        objectFound = true;
-      }
-      else {
-        objectFound = false;
-      }  
-
-      //println ("Object found = " + objectFound);
-
-      // track only if we really found something valuable
-      if (objectFound) {        
-        rect(r.x, r.y, r.width, r.height);
-        // here we put logic which tracks actual object motion
-        // we track upper left corner of bounding rect and draw its trajectory
-        // also determine if this is human based on its speed and delta changing over time
-        // TODO: improve tracking point - with Moments???
-        Point current = new Point(r.x + r.width/2, r.y + r.height/2);
-        boolean added = false;
-        
-        Iterator<Tracked> it = all.iterator();
-        while (it.hasNext()) {
-          Tracked tracked = it.next(); 
-          if(tracked.isStale(frameCnt)){
-            println ("Removing stale object, before = " + all.size());
-            
-            // TODO: this is dirty hack to clean cars
-            if(tracked.trajectory.size() > 60){
-              OUT++;
-            }
-            else{
-              // ignore object
-              IN--;
-            }
-            it.remove();
-            println ("Remove stale object, after = " + all.size());
+    if(!tracking){
+      double maxArea = 0;
+      Rect maxRect = null;
+      for (int i=0; i<contours.size(); i++) {    
+        Rect r = Imgproc.boundingRect(contours.get(i));    
+        // area
+        double area = r.width * r.height; 
+        boolean objectFound = false;
+  
+        // if the area is less than 20 px by 20px then it is probably just noise
+        // if the area is the same as the 3/2 of the image size, probably just a bad filter
+        if (area > MIN_OBJECT_AREA && area < MAX_OBJECT_AREA) {        
+          if(area < maxArea){
             continue;
           }
-          // frameCnt
-          if (tracked.checkSameAndAdd(frameCnt, current)) {
-            added = true;
+          else{
+            maxArea = area;
           }
+          objectFound = true;
+          maxRect = r;
         }
-        /*
-        for (Tracked tracked : all) {
-          if(tracked.isStale(frameCnt)){
-            OUT++;
-            all.remove(tracked);
-          }
-          // frameCnt
-          if (tracked.checkSameAndAdd(frameCnt, current)) {
-            added = true;
-          }
-        }
-        */
-        if (!added) {
-          println ("New object created!");
-          Tracked trackedNew = new Tracked(frameCnt, current);
-          all.add(trackedNew);
-          IN++;
+        else {
+          objectFound = false;
+        }  
+  
+        //println ("Object found = " + objectFound);
+  
+        // track only if we really found something valuable
+        if (objectFound) {        
+          //rect(r.x, r.y, r.width, r.height);
+          // here we put logic which tracks actual object motion
+          // we track upper left corner of bounding rect and draw its trajectory
+          // also determine if this is human based on its speed and delta changing over time
+          // TODO: improve tracking point - with Moments???
+          //cs.create_tracked_object(camFinal,  {new Rect(r.x, r.y, r.width, r.height)}, cs);
         }
       }
+      // try to track maximum area recognized
+      if(maxRect != null){       
+        
+        cs.create_tracked_object(camFinal, new Rect[]{maxRect}, cs); // blackAndWhite
+        tracking = true;
+      }
+    }
+    else{
+      // HERE WE ARE TRACKING OBJECT!
+      println("Start tracking!");
+      RotatedRect face_box = cs.camshift_track_face(camFinal, null, cs); // blackAndWhite
+      //Core.ellipse(camFinal, face_box, new Scalar(0, 0, 255), 6);
+      Rect rc = face_box.boundingRect();
+      if(rc.width * rc.height > 70*120){
+        resetBackground();
+        return;
+      }
+      stroke(0, 0, 255);
+      strokeWeight(2);
+      rect(rc.x, rc.y, rc.width, rc.height);
     }
 
     for (Tracked tracked : all) {
@@ -305,7 +239,7 @@ void draw() {
       }
     }
     
-    println("All = " + all.size() + "\n" + all);
+    //println("All = " + all.size() + "\n" + all);
 
     if (face_detect) {
       Size minSize = new Size(150, 150);
@@ -355,8 +289,8 @@ void draw() {
   
   fill(0, 0, 255);
   textSize(20); 
-  text("IN: " + IN, 20, 40);
-  text("OUT: " + OUT, 20, 80);
+  //text("IN: " + IN, 20, 40);
+  //text("OUT: " + OUT, 20, 80);
   
   textSize(15); 
 
@@ -419,6 +353,9 @@ void resetBackground() {
   all.clear();
   IN = 0;
   OUT = 0;
+  
+  cs = new CamShifting();
+  tracking = false;
 }
 
 void flipMap(int w, int h)

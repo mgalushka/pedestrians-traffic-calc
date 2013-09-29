@@ -118,5 +118,9 @@ public class ImageLibrary {
   public Point3 toPoint3(PVector pt) {
     return new Point3(pt.x, pt.y, pt.z);
   }
+  
+  public Mat getMat(){
+    return new Mat(0, 0, CvType.CV_8UC4);
+  }
 
 }
