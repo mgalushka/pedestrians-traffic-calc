@@ -344,8 +344,8 @@ void draw() {
   text(noiseSigma.get(), 480, videoH + 120);
   text(erode.get(), 480, videoH + 140);
   
-  fill(0, 0, 255);
-  textSize(20); 
+  fill(255);
+  textSize(25); 
   text("IN: " + IN, 20, 40);
   text("OUT: " + OUT, 20, 80);
   
@@ -381,6 +381,7 @@ void mouseDragged() {
   resetBackground();
 }
 
+boolean paused = false;
 void keyPressed() {
   if (key == ' ') {
     println("Refresh static background");
@@ -392,6 +393,15 @@ void keyPressed() {
   }
   if(key == 'c'){
     REAL_COUNT ++;
+  }
+  if(key == 'p'){
+    if(paused){
+      video.play();
+    }
+    else{
+      video.pause();
+    }
+    paused = !paused;
   }
 }
 
