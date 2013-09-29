@@ -102,10 +102,17 @@ class Tracked{
  private boolean addPoint(Integer time, Point b){
    direction();
    if(adjusted(b)){
-     trajectory.put(time, b);
-     T = time;
-     last = b;
-     return true;
+     if(last.x != b.x || last.y != b.y){
+       trajectory.put(time, b);
+       T = time;
+       last = b;
+       return true;
+     }
+     else{
+       // TODO: small hack is here
+       println ("Reject adding same point to history but tracking this as success");
+       return true;
+     }
    } else{
      println("Point not same direction");
      return false;

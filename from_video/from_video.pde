@@ -78,6 +78,8 @@ Set<Tracked> all = new HashSet();
 Integer IN = 0;
 Integer OUT = 0;
 
+Integer REAL_COUNT = 0;
+
 void setup()
 {
   System.loadLibrary(Core.NATIVE_LIBRARY_NAME);  
@@ -98,8 +100,8 @@ void setup()
 
   flipMap(videoW, videoH);
 
-  video = new Movie(this, "demo.mov");
-  //video = new Movie(this, "sample-cafe_x264.mov");
+  //video = new Movie(this, "demo.mov");
+  video = new Movie(this, "sample-cafe_x264.mov");
   
 
   size(w, h);
@@ -246,39 +248,12 @@ void draw() {
         
         Iterator<Tracked> it = all.iterator();
         while (it.hasNext()) {
-          Tracked tracked = it.next(); 
-          if(tracked.isStale(frameCnt)){
-            println ("Removing stale object, before = " + all.size());
-            
-            // TODO: this is dirty hack to clean cars
-            if(tracked.trajectory.size() > 60){
-              OUT++;
-            }
-            else{
-              // ignore object
-              IN--;
-            }
-            it.remove();
-            println ("Remove stale object, after = " + all.size());
-            continue;
-          }
+          Tracked tracked = it.next();           
           // frameCnt
           if (tracked.checkSameAndAdd(frameCnt, current)) {
             added = true;
           }
         }
-        /*
-        for (Tracked tracked : all) {
-          if(tracked.isStale(frameCnt)){
-            OUT++;
-            all.remove(tracked);
-          }
-          // frameCnt
-          if (tracked.checkSameAndAdd(frameCnt, current)) {
-            added = true;
-          }
-        }
-        */
         if (!added) {
           println ("New object created!");
           Tracked trackedNew = new Tracked(frameCnt, current);
@@ -288,12 +263,28 @@ void draw() {
       }
     }
 
-    for (Tracked tracked : all) {
+    Iterator<Tracked> it = all.iterator();
+    while (it.hasNext()) {
+      Tracked tracked = it.next(); 
+      if(tracked.isStale(frameCnt)){
+        println ("Removing stale object, before = " + all.size());        
+        // TODO: this is dirty hack to clean cars
+        if(tracked.trajectory.size() > 60){
+          OUT++;
+        }
+        else{
+          // ignore object
+          IN--;
+        }
+        it.remove();
+        println ("Remove stale object, after = " + all.size());
+        continue;
+      }
       // random color
       //stroke((int) Math.floor(random(255)), (int) Math.floor(random(255)), (int) Math.floor(random(255)));
       stroke((int) tracked.draw.val[0], (int) tracked.draw.val[1], (int) tracked.draw.val[2]);
       strokeWeight(2);
-
+      
       TreeMap<Integer, Point> traj = (TreeMap<Integer, Point>) tracked.trajectory;
       // TODO: dirty hack - fix this - just take first element from map here
       Point prev = traj.firstEntry().getValue();
@@ -398,6 +389,9 @@ void keyPressed() {
   if (key == 's'){
     // start the whole tracking
     video.loop();  
+  }
+  if(key == 'c'){
+    REAL_COUNT ++;
   }
 }
 
