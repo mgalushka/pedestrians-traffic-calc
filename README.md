@@ -19,4 +19,4 @@ Next things author want's to check:
 
 Please, contact myself at mgalushka [@at] gmail dot [com] if you are interested in this project and want to learn OpenCV and object recognition techniquest with me.
 
-Big thanks to #douhack and Binary studio in Donetsh for hosting this event!
+Big thanks to #douhack and Binary studio in Donetsk for hosting this event!
