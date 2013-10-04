@@ -31,11 +31,11 @@ Mat resulted_y;
 
 BackgroundSubtractorMOG background;
 
-int w = 640*2;
-int h = 480*2;
+int w = 640;//*2;
+int h = 480;//*2;
 
-int videoW = w/2;
-int videoH = h/2;
+int videoW = w;///2;
+int videoH = h;///2;
 
 // to configure this as well to cut to small objects from detection
 int MIN_OBJECT_AREA = 20*20;
@@ -207,7 +207,7 @@ void draw() {
     image(imageLibrary.toP5(camFinal), 0, 0, videoW, videoH);
 
     // right - greyscale
-    image(imageLibrary.toP5(blured), width/2, 0, videoW, videoH); //dilated
+    //image(imageLibrary.toP5(blured), width/2, 0, videoW, videoH); //dilated
 
     //println("Size = " + contours.size());
 
@@ -267,9 +267,12 @@ void draw() {
     while (it.hasNext()) {
       Tracked tracked = it.next(); 
       if(tracked.isStale(frameCnt)){
-        println ("Removing stale object, before = " + all.size());        
+        println ("Removing stale object, before = " + all.size());    
+        TreeMap<Integer, Point> traj = ((TreeMap<Integer, Point>) tracked.trajectory);   
+        Integer first = traj.firstKey();
+        Integer last = traj.lastKey();
         // TODO: this is dirty hack to clean cars
-        if(tracked.trajectory.size() > 60){
+        if(traj.size() > 60 || (last - first) > 120){
           OUT++;
         }
         else{

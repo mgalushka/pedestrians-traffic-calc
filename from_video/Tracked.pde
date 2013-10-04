@@ -73,7 +73,7 @@ class Tracked{
    
    // if change is really small - allow to add wrong directed points
    // TODO: this is real hack - remove by proper object tracking
-   if(Math.abs(p.x - last.x) < 10) return true;
+   if(Math.abs(p.x - last.x) < 20) return true;
    return false;
  }
  
@@ -115,7 +115,7 @@ class Tracked{
      }
    } else{
      println("Point not same direction");
-     return false;
+     return true;
    }  
  }
  
