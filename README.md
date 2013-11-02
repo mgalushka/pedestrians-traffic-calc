@@ -6,7 +6,7 @@ Created during #douhack 2013 in Donetsk.
 See demo for this here:
 http://youtu.be/gcONLfkFSNM
 
-Application is created with OpenCV library (for Java) and Processign framework.
+Application is created with OpenCV library (for Java) and Processing framework.
 
 It contains a lot of hacks and there is much to improve.
 
