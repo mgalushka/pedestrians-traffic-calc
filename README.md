@@ -17,6 +17,6 @@ Next things author wants to check:
 3. Play with different tracking algorithms (including BackgroundSubtractorMOG2 which is ported to OpenCV 3)
 4. Play with "segmentMotion" and "calcGlobalOrientation" to identify moved pieces more carefully.
 
-Please, contact myself at mgalushka [@at] gmail dot [com] if you are interested in this project and want to learn OpenCV and object recognition techniquest with me.
+Please, contact myself at on Twitter: @MaximGalushka if you are interested in this project and want to learn OpenCV and object recognition techniquest with me.
 
 Big thanks to #douhack and Binary studio in Donetsk for hosting this event!
