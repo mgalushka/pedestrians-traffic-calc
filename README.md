@@ -6,7 +6,7 @@ Created during #douhack 2013 in Donetsk.
 See demo for this here:
 http://youtu.be/gcONLfkFSNM
 
-[Ttracking pedestrians screenshot](https://raw.githubusercontent.com/mgalushka/pedestrians-traffic-calc/master/resources/tracking_people_2.png)
+![Ttracking pedestrians screenshot](https://raw.githubusercontent.com/mgalushka/pedestrians-traffic-calc/master/resources/tracking_people_2.png)
 
 Application is created with OpenCV library (for Java) and Processing framework.
 
