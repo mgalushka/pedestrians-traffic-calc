@@ -3,7 +3,7 @@ pedestrians-traffic-calc
 
 Created during #douhack 2013 in Donetsk.
 
-See demo for this here:
+See demo for tracking pedestrians directly from webcamera video stream here:
 http://youtu.be/gcONLfkFSNM
 
 ![Ttracking pedestrians screenshot](https://raw.githubusercontent.com/mgalushka/pedestrians-traffic-calc/master/resources/tracking_people_2.png)
